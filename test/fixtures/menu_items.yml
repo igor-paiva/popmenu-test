@@ -10,4 +10,5 @@ two:
   name: MyString
   description: MyString
   price: 1.5
+  picture_url: "https://www.coisasdaroca.com/wp-content/uploads/2023/01/Origem-da-pizza.png"
   menu: one
