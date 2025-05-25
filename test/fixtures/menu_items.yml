@@ -7,8 +7,8 @@ one:
   menu: one
 
 two:
-  name: MyString
-  description: MyString
+  name: MyString2
+  description: MyString2
   price: 1.5
   picture_url: "https://www.coisasdaroca.com/wp-content/uploads/2023/01/Origem-da-pizza.png"
   menu: one
