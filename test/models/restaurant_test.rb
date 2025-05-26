@@ -32,10 +32,15 @@ class RestaurantTest < ActiveSupport::TestCase
   test "should NOT destroy menus when restaurant is destroyed" do
     restaurant = restaurants(:one)
 
+    menu_one, menu_two = restaurant.menus
+
     assert_no_difference "Menu.count" do
       restaurant.destroy!
     end
 
     assert_nil Restaurant.find_by(id: restaurant.id)
+
+    assert_nil menu_one.reload.restaurant_id
+    assert_nil menu_two.reload.restaurant_id
   end
 end
