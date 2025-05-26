@@ -42,4 +42,16 @@ class RestaurantTest < ActiveSupport::TestCase
     assert_nil menu_one.reload.restaurant_id
     assert_nil menu_two.reload.restaurant_id
   end
+
+  test "should associate current menu with restaurant" do
+    restaurant = Restaurant.create!(name: "Test Restaurant")
+
+    menu_one = Menu.create!(name: "Test Menu", description: "Test Description", restaurant:)
+
+    assert_nil restaurant.current_menu
+
+    restaurant.update!(current_menu: menu_one)
+
+    assert_equal menu_one, restaurant.current_menu
+  end
 end
