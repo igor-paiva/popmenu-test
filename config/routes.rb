@@ -4,4 +4,5 @@ Rails.application.routes.draw do
   get "up" => "rails/health#show", as: :rails_health_check
 
   resources :menus, only: %i[index show]
+  resources :restaurants, only: %i[index show]
 end

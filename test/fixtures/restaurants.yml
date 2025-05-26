@@ -2,10 +2,6 @@
 
 one:
   name: MyString
-  description: MyString
-  restaurant: one
 
 two:
   name: MyString
-  description: MyString
-  restaurant: one

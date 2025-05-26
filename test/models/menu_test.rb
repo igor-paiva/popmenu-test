@@ -5,6 +5,7 @@ class MenuTest < ActiveSupport::TestCase
     menu = Menu.create!(
       name: "Test Menu",
       description: "Test Description",
+      restaurant: restaurants(:one),
       menu_items_attributes: [
         {
           name: "Test Bread",
