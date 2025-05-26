@@ -14,7 +14,6 @@ class RestaurantTest < ActiveSupport::TestCase
               description: "Delicious test bread",
               price: 3.99
             }
-
           ]
         }
       ]
