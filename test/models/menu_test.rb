@@ -32,15 +32,10 @@ class MenuTest < ActiveSupport::TestCase
   test "should NOT destroy menu items when menu is destroyed" do
     menu = menus(:one)
 
-    menu_item_one, menu_item_two = menu.menu_items
-
     assert_no_difference "MenuItem.count" do
       menu.destroy!
     end
 
     assert_nil Menu.find_by(id: menu.id)
-
-    assert_nil menu_item_one.reload.menu_id
-    assert_nil menu_item_two.reload.menu_id
   end
 end

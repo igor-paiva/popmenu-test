@@ -1,0 +1,9 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+menu_one_menu_item_one:
+  menu: one
+  menu_item: one
+
+menu_one_menu_item_two:
+  menu: one
+  menu_item: two

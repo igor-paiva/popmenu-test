@@ -13,12 +13,12 @@ class MenuItemTest < ActiveSupport::TestCase
       description: "Delicious test pizza",
       price: 12.99,
       picture_url: "https://www.coisasdaroca.com/wp-content/uploads/2023/01/Origem-da-pizza.png",
-      menu:
+      menu_menu_items_attributes: [ { menu_id: menu.id } ]
     )
 
     assert_equal(
-      menu, menu_item.menu,
-      "Should return the menu through menu item"
+      menu, menu_item.menus.first,
+      "Should return the menus through menu item"
     )
   end
 
@@ -33,14 +33,14 @@ class MenuItemTest < ActiveSupport::TestCase
       name: "Test Pizza",
       description: "Delicious test pizza",
       price: 12.99,
-      menu:
+      menu_menu_items_attributes: [ { menu_id: menu.id } ]
     )
 
     menu_item_same_name = MenuItem.new(
       name: "Test Pizza",
       description: "Delicious pizza",
       price: 13.99,
-      menu:
+      menu_menu_items_attributes: [ { menu_id: menu.id } ]
     )
 
     assert_not menu_item_same_name.save
