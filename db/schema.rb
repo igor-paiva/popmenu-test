@@ -10,14 +10,14 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_05_26_023924) do
+ActiveRecord::Schema[8.0].define(version: 2025_05_26_223816) do
   create_table "menu_items", force: :cascade do |t|
     t.string "name"
     t.string "description"
-    t.float "price"
     t.string "picture_url"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.float "price"
     t.index ["name"], name: "index_menu_items_on_name", unique: true
   end
 
@@ -26,6 +26,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_05_26_023924) do
     t.integer "menu_item_id", null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.float "price"
     t.index ["menu_id", "menu_item_id"], name: "index_menu_menu_items_on_menu_id_and_menu_item_id", unique: true
     t.index ["menu_id"], name: "index_menu_menu_items_on_menu_id"
     t.index ["menu_item_id"], name: "index_menu_menu_items_on_menu_item_id"

@@ -2,31 +2,31 @@ require "test_helper"
 
 class MenuTest < ActiveSupport::TestCase
   test "should create menu with multiple menu items" do
+    menu_item = MenuItem.create!(
+      name: "Test Bread",
+      description: "Delicious test bread",
+      price: 3.99
+    )
+
     menu = Menu.create!(
       name: "Test Menu",
       description: "Test Description",
       restaurant: restaurants(:one),
-      menu_items_attributes: [
-        {
-          name: "Test Bread",
-          description: "Delicious test bread",
-          price: 3.99
-        }
-      ]
+      menu_menu_items_attributes: [ { menu_item:, price: 3.99 } ]
     )
 
     assert_equal 1, menu.menu_items.count
 
-    menu.menu_items.build(
+    MenuItem.create!(
       name: "Test Pizza",
       description: "Delicious test pizza",
       price: 12.99,
-      picture_url: "https://www.coisasdaroca.com/wp-content/uploads/2023/01/Origem-da-pizza.png"
+      picture_url: "https://www.coisasdaroca.com/wp-content/uploads/2023/01/Origem-da-pizza.png",
+      menu_menu_items_attributes: [ { menu_id: menu.id, price: 13.99 } ]
     )
 
-    menu.save!
-
-    assert_equal 2, menu.menu_items.count
+    assert_equal 2, menu.reload.menu_items.count
+    assert_equal 2, menu.menu_menu_items.count
   end
 
   test "should NOT destroy menu items when menu is destroyed" do

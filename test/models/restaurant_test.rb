@@ -5,18 +5,15 @@ class RestaurantTest < ActiveSupport::TestCase
     restaurant = Restaurant.create!(
       name: "Test Restaurant",
       menus_attributes: [
-        {
-          name: "Test Menu",
-          description: "Test Description",
-          menu_items_attributes: [
-            {
-              name: "Test Bread",
-              description: "Delicious test bread",
-              price: 3.99
-            }
-          ]
-        }
+        { name: "Test Menu", description: "Test Description" }
       ]
+    )
+
+    MenuItem.create!(
+      name: "Test Bread",
+      description: "Delicious test bread",
+      price: 3.99,
+      menu_menu_items_attributes: [ { menu_id: restaurant.menus.first.id, price: 4.99 } ]
     )
 
     assert_equal 1, restaurant.menus.count

@@ -13,13 +13,15 @@ class MenuItemTest < ActiveSupport::TestCase
       description: "Delicious test pizza",
       price: 12.99,
       picture_url: "https://www.coisasdaroca.com/wp-content/uploads/2023/01/Origem-da-pizza.png",
-      menu_menu_items_attributes: [ { menu_id: menu.id } ]
+      menu_menu_items_attributes: [ { menu_id: menu.id, price: 12.99 } ]
     )
 
     assert_equal(
       menu, menu_item.menus.first,
       "Should return the menus through menu item"
     )
+
+    assert_equal 12.99, menu_item.price, "Should return the menu item price from"
   end
 
   test "should validate uniqueness of name" do
@@ -32,15 +34,14 @@ class MenuItemTest < ActiveSupport::TestCase
     _menu_item = MenuItem.create!(
       name: "Test Pizza",
       description: "Delicious test pizza",
-      price: 12.99,
-      menu_menu_items_attributes: [ { menu_id: menu.id } ]
+      menu_menu_items_attributes: [ { menu_id: menu.id, price: 12.99 } ]
     )
 
     menu_item_same_name = MenuItem.new(
       name: "Test Pizza",
       description: "Delicious pizza",
       price: 13.99,
-      menu_menu_items_attributes: [ { menu_id: menu.id } ]
+      menu_menu_items_attributes: [ { menu_id: menu.id, price: 13.99 } ]
     )
 
     assert_not menu_item_same_name.save

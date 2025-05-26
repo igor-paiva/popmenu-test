@@ -3,7 +3,9 @@
 menu_one_menu_item_one:
   menu: one
   menu_item: one
+  price: 1.5
 
 menu_one_menu_item_two:
   menu: one
   menu_item: two
+  price: 3.0
