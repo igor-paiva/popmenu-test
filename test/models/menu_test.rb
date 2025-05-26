@@ -29,10 +29,10 @@ class MenuTest < ActiveSupport::TestCase
     assert_equal 2, menu.menu_items.count
   end
 
-  test "should destroy menu items when menu is destroyed" do
+  test "should NOT destroy menu items when menu is destroyed" do
     menu = menus(:one)
 
-    assert_difference "MenuItem.count", -2 do
+    assert_no_difference "MenuItem.count" do
       menu.destroy!
     end
 

@@ -2,7 +2,11 @@ require "test_helper"
 
 class MenuItemTest < ActiveSupport::TestCase
   test "should create menu item" do
-    menu = Menu.create!(name: "Test Menu", description: "Test Description")
+    menu = Menu.create!(
+      name: "Test Menu",
+      description: "Test Description",
+      restaurant: restaurants(:one)
+    )
 
     menu_item = MenuItem.create!(
       name: "Test Pizza",
@@ -18,8 +22,12 @@ class MenuItemTest < ActiveSupport::TestCase
     )
   end
 
-  test "should validate uniqueness of name within menu" do
-    menu = Menu.create!(name: "Test Menu", description: "Test Description")
+  test "should validate uniqueness of name" do
+    menu = Menu.create!(
+      name: "Test Menu",
+      description: "Test Description",
+      restaurant: restaurants(:one)
+    )
 
     _menu_item = MenuItem.create!(
       name: "Test Pizza",
@@ -44,14 +52,5 @@ class MenuItemTest < ActiveSupport::TestCase
     end
 
     assert_equal "Validation failed: Name has already been taken", error.message
-
-    menu_item_another_menu = MenuItem.new(
-      name: "Test Pizza",
-      description: "Delicious pizza",
-      price: 13.99,
-      menu: menus(:one)
-    )
-
-    assert menu_item_another_menu.save
   end
 end
