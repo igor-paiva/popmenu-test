@@ -23,4 +23,68 @@ class RestaurantsControllerTest < ActionDispatch::IntegrationTest
 
     assert_equal 2, parsed_response["menus"].count
   end
+
+  test "should import restaurants from JSON file" do
+    assert_difference "MenuMenuItem.count", 8 do
+      assert_difference "Restaurant.count", 2 do
+        assert_difference "Menu.count", 4 do
+          assert_difference "MenuItem.count", 6 do
+            post import_restaurants_url, params: JSON.parse(file_fixture("restaurants.json").read), as: :json
+
+            assert_response :success
+          end
+        end
+      end
+    end
+
+    restaurant_one = Restaurant.find_by!(name: "Poppo's Cafe")
+    restaurant_two = Restaurant.find_by!(name: "Casa del Poppo")
+
+    restaurant_one_menus = restaurant_one.menus.sort_by(&:name)
+    restaurant_two_menus = restaurant_two.menus.sort_by(&:name)
+
+    assert_equal(%w[dinner lunch], restaurant_one_menus.pluck(:name).sort)
+    assert_equal(%w[dinner lunch], restaurant_two_menus.pluck(:name).sort)
+
+    restaurant_one_dinner_menu = restaurant_one_menus.first
+    restaurant_one_lunch_menu = restaurant_one_menus.last
+
+    burger_item = MenuItem.find_by!(name: "Burger")
+    small_salad_item = MenuItem.find_by!(name: "Small Salad")
+    large_salad_item = MenuItem.find_by!(name: "Large Salad")
+    chicken_wings_item = MenuItem.find_by!(name: "Chicken Wings")
+    mega_burger_item = MenuItem.find_by!(name: "Mega \"Burger\"")
+    lobster_mac_and_cheese_item = MenuItem.find_by!(name: "Lobster Mac & Cheese")
+
+    assert MenuMenuItem.exists?(
+      menu: restaurant_one_lunch_menu, menu_item: burger_item, price: 9.0
+    )
+    assert MenuMenuItem.exists?(
+      menu: restaurant_one_lunch_menu, menu_item: small_salad_item, price: 5.0
+    )
+
+    assert MenuMenuItem.exists?(
+      menu: restaurant_one_dinner_menu, menu_item: burger_item, price: 15.0
+    )
+    assert MenuMenuItem.exists?(
+      menu: restaurant_one_dinner_menu, menu_item: large_salad_item, price: 8.0
+    )
+
+    restaurant_two_dinner_menu = restaurant_two_menus.first
+    restaurant_two_lunch_menu = restaurant_two_menus.last
+
+    assert MenuMenuItem.exists?(
+      menu: restaurant_two_lunch_menu, menu_item: chicken_wings_item, price: 9.0
+    )
+    assert MenuMenuItem.exists?(
+      menu: restaurant_two_lunch_menu, menu_item: burger_item, price: 9.0
+    )
+
+    assert MenuMenuItem.exists?(
+      menu: restaurant_two_dinner_menu, menu_item: mega_burger_item, price: 22.0
+    )
+    assert MenuMenuItem.exists?(
+      menu: restaurant_two_dinner_menu, menu_item: lobster_mac_and_cheese_item, price: 31.0
+    )
+  end
 end
