@@ -26,7 +26,7 @@ module Services
         returning = unique_by + %i[id]
 
         result = Restaurant.upsert_all(
-          @restaurants_data.map { _1.slice(:name) }, unique_by:, returning:
+          @restaurants_data.map { _1.slice(*restaurants_update_fields) }, unique_by:, returning:
         ).to_a
 
         raise ActiveRecord::Rollback if result.length != @restaurants_data.length
@@ -51,7 +51,7 @@ module Services
         returning = unique_by + %i[id]
 
         result = Menu.upsert_all(
-          @menus_data.map { _1.slice(*%i[name description restaurant_id]) }, unique_by:, returning:
+          @menus_data.map { _1.slice(*menus_update_fields) }, unique_by:, returning:
         ).to_a
 
         raise ActiveRecord::Rollback if result.length != @menus_data.length
@@ -74,7 +74,7 @@ module Services
         returning = unique_by + %i[id]
 
         result = MenuItem.upsert_all(
-          @menu_items_data.map { _1.slice(*%i[name description price]) }, unique_by:, returning:
+          @menu_items_data.map { _1.slice(*menu_items_update_fields) }, unique_by:, returning:
         ).to_a
 
         raise ActiveRecord::Rollback if result.length != @menu_items_data.length
@@ -85,7 +85,7 @@ module Services
       end
 
       def extract_menu_menu_items!
-        menu_menu_items_data = @menu_items_data.map do |menu_item|
+        @menu_menu_items_data = @menu_items_data.map do |menu_item|
           {
             menu_id: menu_item[:menu_id],
             menu_item_id: @menu_items_map[menu_item.fetch_values(*menu_items_unique_by)],
@@ -94,13 +94,19 @@ module Services
         end
 
         result = MenuMenuItem.upsert_all(
-          menu_menu_items_data, unique_by: menu_menu_items_unique_by, returning: :id
+          @menu_menu_items_data.map { _1.slice(*menu_menu_items_update_fields) },
+          unique_by: menu_menu_items_unique_by,
+          returning: :id
         )
 
-        raise ActiveRecord::Rollback if result.length != menu_menu_items_data.length
+        raise ActiveRecord::Rollback if result.length != @menu_menu_items_data.length
       end
 
       def restaurants_unique_by
+        %i[name]
+      end
+
+      def restaurants_update_fields
         %i[name]
       end
 
@@ -108,12 +114,24 @@ module Services
         %i[name restaurant_id]
       end
 
+      def menus_update_fields
+        %i[name description restaurant_id]
+      end
+
       def menu_items_unique_by
         %i[name]
       end
 
+      def menu_items_update_fields
+        %i[name description price picture_url]
+      end
+
       def menu_menu_items_unique_by
         %i[menu_id menu_item_id]
+      end
+
+      def menu_menu_items_update_fields
+        %i[menu_id menu_item_id price]
       end
   end
 end
