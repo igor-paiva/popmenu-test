@@ -1,14 +1,27 @@
 module Services
   class ImportRestaurants
+    MODELS = %i[restaurants menus menu_items menu_menu_items]
+
     def initialize(params)
+      @result = {}
       @params = params.to_h
     end
 
     def run
+      initialize_process_data
       process_data
+      @result
     end
 
     private
+
+      def initialize_process_data
+        @result[:general] = { message: nil, errors: [] }
+
+        MODELS.each do |model|
+          @result[model] = { success: [], errors: [] }
+        end
+      end
 
       def process_data
         ActiveRecord::Base.transaction do
@@ -16,6 +29,12 @@ module Services
           extract_menus!
           extract_menu_items!
           extract_menu_menu_items!
+        end
+
+        if @result[:general][:errors].empty?
+          @result[:general][:message] = "Restaurants imported successfully"
+        else
+          @result[:general][:message] = "Failed to import restaurants. All changes were rolled back."
         end
       end
 
@@ -64,7 +83,7 @@ module Services
 
             menu_data[:menu_items] = menu[:dishes] if menu_data[:menu_items].blank? && menu.key?(:dishes)
 
-            menu_data.merge(restaurant_id: @restaurants_map[restaurant.fetch_values(*restaurants_unique_by)])
+            menu_data.merge(restaurant_id: restaurants_record_id(restaurant))
           end
         end
 
@@ -74,9 +93,7 @@ module Services
       def extract_menu_items!
         @menu_items_data = @menus_data.flat_map do |menu|
           menu[:menu_items].map do |menu_item|
-            menu_item.slice(*menu_items_update_fields).merge(
-              menu_id: @menus_map[menu.fetch_values(*menus_unique_by)]
-            )
+            menu_item.slice(*menu_items_update_fields).merge(menu_id: menus_record_id(menu))
           end
         end
 
@@ -88,7 +105,7 @@ module Services
           {
             price: menu_item[:price],
             menu_id: menu_item[:menu_id],
-            menu_item_id: @menu_items_map[menu_item.fetch_values(*menu_items_unique_by)]
+            menu_item_id: menu_items_record_id(menu_item)
           }
         end
 
@@ -102,13 +119,49 @@ module Services
 
         model_data = instance_variable_get("@#{model_namespace}_data")
 
-        result = model.upsert_all(model_data.map { _1.slice(*update_fields) }, unique_by:, returning:).to_a
+        result = model.upsert_all(
+          model_data.map { _1.slice(*update_fields) }, unique_by:, returning:
+        ).to_a.map(&:symbolize_keys)
 
-        raise ActiveRecord::Rollback if result.length != model_data.length
+        if result.length != model_data.length
+          @result[:general][:errors] << "Failed to import #{model_namespace} records"
 
-        hash_map = result.map { [ _1.fetch_values(*unique_by.map(&:to_s)), _1["id"] ] }
+          raise ActiveRecord::Rollback
+        end
 
-        instance_variable_set("@#{model_namespace}_map", hash_map.to_h)
+        ids_map = result.map do |record_result|
+          unique_by_values = send("#{model_namespace}_unique_by_values", record_result)
+
+          [ unique_by_values, record_result[:id] ]
+        end.to_h
+
+        instance_variable_set("@#{model_namespace}_ids_map", ids_map)
+
+        # Add records imported with success to result
+        @result[model_namespace][:success] = result
+
+        # Add records imported with errors to result
+        model_data.each do |record|
+          unique_by_values_hash = record.slice(*unique_by)
+
+          next if ids_map.key?(unique_by_values_hash.values)
+
+          @result[model_namespace][:errors] << unique_by_values_hash.merge(description: "Failed to create or update record")
+        end
+      end
+
+      MODELS.each do |model_namespace|
+        define_method("#{model_namespace}_unique_by_values") do |record_hash|
+          record_hash.fetch_values(*send("#{model_namespace}_unique_by"))
+        end
+
+        define_method("#{model_namespace}_record_id") do |record_hash|
+          unique_by_values = send("#{model_namespace}_unique_by_values", record_hash)
+
+          ids_map = instance_variable_get("@#{model_namespace}_ids_map")
+
+          ids_map[unique_by_values]
+        end
       end
   end
 end
