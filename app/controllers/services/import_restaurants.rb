@@ -214,14 +214,15 @@ module Services
         update_fields = send("#{model_namespace}_update_fields")
 
         model_data = instance_variable_get("@#{model_namespace}_data")
+        normalized_data = normalized_upsert_data(model_data:, update_fields:, model_namespace:)
 
         result = model
-          .upsert_all(model_data.map { _1.slice(*update_fields) }, unique_by:, returning:)
+          .upsert_all(normalized_data, unique_by:, returning:, on_duplicate: on_duplicate_sql(update_fields))
           .to_a
           .map(&:symbolize_keys)
 
-        if result.length != model_data.length
-          @result[:general][:errors] << custom_message || "Failed to import #{model_namespace} records"
+        if result.length != normalized_data.length
+          @result[:general][:errors] << (custom_message || "Failed to import #{model_namespace} records")
 
           raise ActiveRecord::Rollback
         end
@@ -253,6 +254,26 @@ module Services
 
           @result[model_namespace][:errors] << unique_by_values_hash.merge(description: "Failed to create or update record")
         end
+      end
+
+      def on_duplicate_sql(update_fields)
+        Arel.sql(update_fields.map { |field| "#{field} = EXCLUDED.#{field}" }.join(", "))
+      end
+
+      def normalized_upsert_data(model_data:, update_fields:, model_namespace:)
+        # Ensure all records have all required fields, to avoid upsert errors
+        normalized_data = model_data.map do |record|
+          update_fields.each_with_object({}) do |field, normalized_record|
+            normalized_record[field] = record[field]
+          end
+        end
+
+        # Remove duplicates, keeping the first occurrence, to avoid upsert errors
+        normalized_data.uniq! do |record|
+          send("#{model_namespace}_unique_by_values", record)
+        end
+
+        normalized_data
       end
 
       MODELS.each do |model_namespace|
