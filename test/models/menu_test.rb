@@ -38,4 +38,42 @@ class MenuTest < ActiveSupport::TestCase
 
     assert_nil Menu.find_by(id: menu.id)
   end
+
+  test "should require name to be present" do
+    menu = Menu.new(restaurant: restaurants(:one))
+
+    assert_not menu.valid?
+    assert_includes menu.errors[:name], "can't be blank"
+  end
+
+  test "should require name to be unique within same restaurant" do
+    existing_menu = menus(:one)
+    duplicate_menu = Menu.new(
+      name: existing_menu.name,
+      restaurant: existing_menu.restaurant
+    )
+
+    assert_not duplicate_menu.valid?
+    assert_includes duplicate_menu.errors[:name], "has already been taken"
+  end
+
+  test "should allow same menu name in different restaurants" do
+    restaurant_one = restaurants(:one)
+    restaurant_two = restaurants(:two)
+
+    Menu.create!(name: "Same Menu Name", restaurant: restaurant_one)
+    menu_two = Menu.new(name: "Same Menu Name", restaurant: restaurant_two)
+
+    assert menu_two.valid?
+    assert menu_two.save
+  end
+
+  test "should allow different menu names in same restaurant" do
+    restaurant = restaurants(:one)
+
+    Menu.create!(name: "Menu One", restaurant: restaurant)
+    menu_two = Menu.new(name: "Menu Two", restaurant: restaurant)
+
+    assert menu_two.valid?
+  end
 end

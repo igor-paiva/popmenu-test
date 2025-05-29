@@ -51,4 +51,26 @@ class RestaurantTest < ActiveSupport::TestCase
 
     assert_equal menu_one, restaurant.current_menu
   end
+
+  test "should require name to be present" do
+    restaurant = Restaurant.new
+
+    assert_not restaurant.valid?
+    assert_includes restaurant.errors[:name], "can't be blank"
+  end
+
+  test "should require name to be unique" do
+    existing_restaurant = restaurants(:one)
+    duplicate_restaurant = Restaurant.new(name: existing_restaurant.name)
+
+    assert_not duplicate_restaurant.valid?
+    assert_includes duplicate_restaurant.errors[:name], "has already been taken"
+  end
+
+  test "should allow different restaurant names" do
+    Restaurant.create!(name: "Restaurant One")
+    restaurant_two = Restaurant.new(name: "Restaurant Two")
+
+    assert restaurant_two.valid?
+  end
 end
