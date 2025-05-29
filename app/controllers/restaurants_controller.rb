@@ -8,7 +8,7 @@ class RestaurantsController < ApplicationController
   def show; end
 
   def import
-    @result = Services::ImportRestaurants.run(import_permitted_params)
+    @result = ImportRestaurants.run(import_permitted_params)
 
     @result.delete(:menu_menu_items)
 
