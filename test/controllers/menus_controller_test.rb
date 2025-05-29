@@ -24,4 +24,15 @@ class MenusControllerTest < ActionDispatch::IntegrationTest
 
     assert_equal 2, parsed_response["menu_items"].count
   end
+
+  test "should return HTTP 404 if menu is not found" do
+    menu = menus(:one)
+    menu.destroy!
+
+    get menu_url(menu.id), as: :json
+
+    assert_response :not_found
+
+    assert_equal({ "error" => "Menu not found" }, response.parsed_body)
+  end
 end

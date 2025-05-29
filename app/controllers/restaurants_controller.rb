@@ -1,6 +1,8 @@
 class RestaurantsController < ApplicationController
   before_action :set_restaurant, only: %i[show]
 
+  rescue_from ActiveRecord::RecordNotFound, with: :record_not_found
+
   def index
     @restaurants = Restaurant.all
   end
@@ -20,7 +22,7 @@ class RestaurantsController < ApplicationController
   private
 
     def set_restaurant
-      @restaurant = Restaurant.find_by(id: params[:id])
+      @restaurant = Restaurant.find_by!(id: params[:id])
     end
 
     def import_permitted_params
@@ -35,5 +37,9 @@ class RestaurantsController < ApplicationController
           ]
         ]
       )
+    end
+
+    def record_not_found
+      render json: { error: "Restaurant not found" }, status: :not_found
     end
 end

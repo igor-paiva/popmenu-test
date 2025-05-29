@@ -24,6 +24,17 @@ class RestaurantsControllerTest < ActionDispatch::IntegrationTest
     assert_equal 2, parsed_response["menus"].count
   end
 
+  test "should return HTTP 404 if menu is not found" do
+    restaurant = restaurants(:one)
+    restaurant.destroy!
+
+    get restaurant_url(restaurant), as: :json
+
+    assert_response :not_found
+
+    assert_equal({ "error" => "Restaurant not found" }, response.parsed_body)
+  end
+
   test "should import restaurants from JSON file" do
     assert_difference "MenuMenuItem.count", 8 do
       assert_difference "Restaurant.count", 2 do
