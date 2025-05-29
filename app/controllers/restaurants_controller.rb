@@ -8,7 +8,13 @@ class RestaurantsController < ApplicationController
   def show; end
 
   def import
-    Services::ImportRestaurants.new(import_permitted_params).run
+    @result = Services::ImportRestaurants.run(import_permitted_params)
+
+    @result.delete(:menu_menu_items)
+
+    return render json: @result, status: :unprocessable_entity unless @result[:general][:success]
+
+    render json: @result, status: :ok
   end
 
   private
@@ -23,7 +29,8 @@ class RestaurantsController < ApplicationController
           :name,
           menus: [
             :name,
-            menu_items: %i[name price],
+            :description,
+            menu_items: %i[name price description picture_url],
             dishes: %i[name price]
           ]
         ]

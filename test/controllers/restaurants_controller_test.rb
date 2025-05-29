@@ -37,6 +37,18 @@ class RestaurantsControllerTest < ActionDispatch::IntegrationTest
       end
     end
 
+    parsed_response = response.parsed_body
+
+    assert_equal(
+      { "success" => true, "errors" => [], "message" => "Restaurants imported successfully" },
+      parsed_response["general"]
+    )
+
+    assert_equal 2, parsed_response.dig("restaurants", "success").count
+    assert_equal 4, parsed_response.dig("menus", "success").count
+    assert_equal 9, parsed_response.dig("menu_items", "success").count
+    assert_nil parsed_response["menu_menu_items"]
+
     restaurant_one = Restaurant.find_by!(name: "Poppo's Cafe")
     restaurant_two = Restaurant.find_by!(name: "Casa del Poppo")
 
