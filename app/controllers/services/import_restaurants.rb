@@ -1,3 +1,81 @@
+# Service class for importing restaurant data with nested menus and menu items.
+#
+# This service handles the import of restaurants along with their associated menus,
+# menu items, and menu-item associations. It performs upsert operations to create
+# or update records, and maintains data integrity through database transactions.
+#
+# @example Usage
+#   result = Services::ImportRestaurants.run(params)
+#   if result.dig(:general, :success)
+#     puts "Import successful: #{result.dig(:general, :message)}"
+#   else
+#     puts "Import failed: #{result.dig(:general, :errors)}"
+#   end
+#
+# @param params [Hash] The import parameters containing restaurant data
+#
+# Expected params structure:
+#   {
+#     restaurants: [
+#       {
+#         name: "Restaurant Name",                    # required
+#         menus: [
+#           {
+#             name: "Menu Name",                      # required
+#             description: "Menu description",        # optional
+#             menu_items: [                           # can also use :dishes as fallback
+#               {
+#                 name: "Item Name",                  # required
+#                 description: "Item description",    # optional
+#                 price: 12.99,                       # optional (float)
+#                 picture_url: "http://example.com"   # optional
+#               }
+#               # ... more menu items
+#             ]
+#           }
+#           # ... more menus
+#         ]
+#       }
+#       # ... more restaurants
+#     ]
+#   }
+#
+# @return [Hash] Import result with success/error details for each model
+#
+# Return structure:
+#   {
+#     general: {
+#       success: true/false,                         # overall import success
+#       message: "Status message",                   # human-readable status
+#       errors: []                                   # array of general errors
+#     },
+#     restaurants: {
+#       success: [                                   # array of successfully imported records
+#         { id: 1, name: "Restaurant Name", ... }
+#       ],
+#       errors: [                                    # array of failed records with details
+#         { name: "Failed Restaurant", description: "Failed to create or update record" }
+#       ]
+#     },
+#     menus: {
+#       success: [...],                              # successfully imported menu records
+#       errors: [...]                               # failed menu records
+#     },
+#     menu_items: {
+#       success: [...],                              # successfully imported menu item records
+#       errors: [...]                               # failed menu item records
+#     },
+#     menu_menu_items: {
+#       success: [...],                              # successfully created menu-item associations
+#       errors: [...]                               # failed menu-item associations
+#     }
+#   }
+#
+# @note All operations are wrapped in a database transaction. If any step fails,
+#       all changes are rolled back to maintain data consistency.
+#
+# @note The service uses upsert operations, so existing records with matching
+#       unique keys will be updated rather than duplicated.
 module Services
   class ImportRestaurants
     MODELS = %i[restaurants menus menu_items menu_menu_items].freeze
