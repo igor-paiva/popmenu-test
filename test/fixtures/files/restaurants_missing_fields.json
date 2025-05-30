@@ -1,23 +1,17 @@
 {
     "restaurants": [
         {
-            "name": "Poppo's Cafe",
-            "unpermitted_param": "unpermitted_value",
             "menus": [
                 {
                     "name": "lunch",
-                    "unpermitted_param": "unpermitted_value",
                     "menu_items": [
                         {
                             "name": "Burger",
-                            "unpermitted_param": "unpermitted_value",
-                            "price": 9.00,
-                            "description": "A burger with fries"
+                            "price": 9.00
                         },
                         {
                             "name": "Small Salad",
-                            "price": 5.00,
-                            "picture_url": "https://example.com/small-salad.jpg"
+                            "price": 5.00
                         }
                     ]
                 },
@@ -41,10 +35,8 @@
             "menus": [
                 {
                     "name": "lunch",
-                    "description": "A lunch menu",
                     "dishes": [
                         {
-                            "name": "Chicken Wings",
                             "price": 9.00
                         },
                         {
@@ -58,7 +50,6 @@
                     ]
                 },
                 {
-                    "name": "dinner",
                     "dishes": [
                         {
                             "name": "Mega \"Burger\"",

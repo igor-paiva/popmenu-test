@@ -138,6 +138,10 @@ class ImportRestaurants
       %i[name]
     end
 
+    def restaurants_required_fields
+      %i[name]
+    end
+
     def menus_unique_by
       %i[name restaurant_id]
     end
@@ -146,12 +150,20 @@ class ImportRestaurants
       %i[name description restaurant_id]
     end
 
+    def menus_required_fields
+      %i[name]
+    end
+
     def menu_items_unique_by
       %i[name]
     end
 
     def menu_items_update_fields
       %i[name description price picture_url]
+    end
+
+    def menu_items_required_fields
+      %i[name]
     end
 
     def menu_menu_items_unique_by
@@ -215,13 +227,21 @@ class ImportRestaurants
       model_data = instance_variable_get("@#{model_namespace}_data")
       normalized_data = normalized_upsert_data(model_data:, update_fields:, model_namespace:)
 
-      result = model
-        .upsert_all(normalized_data, unique_by:, returning:, on_duplicate: on_duplicate_sql(update_fields))
-        .to_a
-        .map(&:symbolize_keys)
+      begin
+        result = model
+          .upsert_all(normalized_data, unique_by:, returning:, on_duplicate: on_duplicate_sql(update_fields))
+          .to_a
+          .map(&:symbolize_keys)
+      rescue ActiveRecord::NotNullViolation
+        log_not_null_violation(model_namespace:)
+
+        raise ActiveRecord::Rollback
+      end
 
       if result.length != normalized_data.length
-        @result[:general][:errors] << (custom_message || "Failed to import #{model_namespace} records")
+        @result[model_namespace][:errors] << {
+          description: custom_message || "Failed to import #{model_namespace} records"
+        }
 
         raise ActiveRecord::Rollback
       end
@@ -253,6 +273,19 @@ class ImportRestaurants
 
         @result[model_namespace][:errors] << unique_by_values_hash.merge(description: "Failed to create or update record")
       end
+    end
+
+    def log_not_null_violation(model_namespace:)
+      required_fields = send("#{model_namespace}_required_fields")
+
+      @result[:general][:errors] << {
+        error_record: model_namespace,
+        description: "Failed to import #{model_namespace} records"
+      }
+
+      @result[model_namespace][:errors] << {
+        description: "The following fields are required: #{required_fields.join(", ")}"
+      }
     end
 
     def on_duplicate_sql(update_fields)

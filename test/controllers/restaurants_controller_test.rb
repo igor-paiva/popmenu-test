@@ -153,4 +153,42 @@ class RestaurantsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "A burger with fries", burger_item.description
     assert_equal "https://example.com/small-salad.jpg", small_salad_item.picture_url
   end
+
+  test "should return HTTP 422 if JSON file is invalid" do
+    assert_no_difference "MenuMenuItem.count" do
+      assert_no_difference "Restaurant.count" do
+        assert_no_difference "Menu.count" do
+          assert_no_difference "MenuItem.count" do
+            params = JSON.parse(file_fixture("restaurants_missing_fields.json").read)
+
+            post import_restaurants_url, params:, as: :json
+
+            assert_response :unprocessable_entity
+          end
+        end
+      end
+    end
+
+    expected_response = {
+      "general" => {
+        "message" => "Failed to import restaurants. All changes were rolled back.",
+        "errors" => [
+          { "error_record" => "restaurants", "description" => "Failed to import restaurants records" }
+        ],
+        "success" => false
+      },
+      "restaurants" => {
+        "success" => [],
+        "errors" => [
+          {
+            "description" => "The following fields are required: name"
+          }
+        ]
+      },
+      "menus" => { "success" => [], "errors" => [] },
+      "menu_items" => { "success" => [], "errors" => [] }
+    }
+
+    assert_equal expected_response, response.parsed_body
+  end
 end
