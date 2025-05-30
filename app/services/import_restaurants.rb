@@ -307,9 +307,16 @@ class ImportRestaurants
     def normalized_upsert_data(model_data:, update_fields:, model_namespace:)
       missing_required_fields = []
       required_fields = send("#{model_namespace}_required_fields")
+      seen_unique_values = Set.new
 
-      # Ensure all records have all required fields, to avoid upsert errors
-      normalized_data = model_data.map do |record|
+      # Ensure all records have all required fields and are unique, to avoid upsert errors
+      normalized_data = model_data.filter_map do |record|
+        unique_values = send("#{model_namespace}_unique_by_values", record)
+
+        next if seen_unique_values.include?(unique_values)
+
+        seen_unique_values.add(unique_values)
+
         update_fields.each_with_object({}) do |field, normalized_record|
           missing_required_fields << field if field.in?(required_fields) && record[field].blank?
 
@@ -317,17 +324,12 @@ class ImportRestaurants
         end
       end
 
-      # Remove duplicates, keeping the first occurrence, to avoid upsert errors
-      normalized_data.uniq! do |record|
-        send("#{model_namespace}_unique_by_values", record)
-      end
-
       return normalized_data, missing_required_fields
     end
 
     MODELS.each do |model_namespace|
       define_method("#{model_namespace}_unique_by_values") do |record_hash|
-        record_hash.fetch_values(*send("#{model_namespace}_unique_by"))
+        record_hash.values_at(*send("#{model_namespace}_unique_by"))
       end
 
       define_method("#{model_namespace}_record_id") do |record_hash|
