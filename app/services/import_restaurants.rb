@@ -174,6 +174,10 @@ class ImportRestaurants
       %i[menu_id menu_item_id price]
     end
 
+    def menu_menu_items_required_fields
+      []
+    end
+
     def extract_restaurants!
       @restaurants_data = @params[:restaurants]
 
@@ -225,7 +229,9 @@ class ImportRestaurants
       update_fields = send("#{model_namespace}_update_fields")
 
       model_data = instance_variable_get("@#{model_namespace}_data")
-      normalized_data = normalized_upsert_data(model_data:, update_fields:, model_namespace:)
+      normalized_data, missing_required_fields = normalized_upsert_data(model_data:, update_fields:, model_namespace:)
+
+      validate_required_fields!(model_namespace:, missing_required_fields:)
 
       begin
         result = model
@@ -275,16 +281,14 @@ class ImportRestaurants
       end
     end
 
-    def log_not_null_violation(model_namespace:)
-      required_fields = send("#{model_namespace}_required_fields")
-
+    def log_not_null_violation(model_namespace:, missing_required_fields:)
       @result[:general][:errors] << {
         error_record: model_namespace,
         description: "Failed to import #{model_namespace} records"
       }
 
       @result[model_namespace][:errors] << {
-        description: "The following fields are required: #{required_fields.join(", ")}"
+        description: "The following fields are required and are missing: #{missing_required_fields.join(", ")}"
       }
     end
 
@@ -292,10 +296,23 @@ class ImportRestaurants
       Arel.sql(update_fields.map { |field| "#{field} = EXCLUDED.#{field}" }.join(", "))
     end
 
+    def validate_required_fields!(model_namespace:, missing_required_fields:)
+      return if missing_required_fields.blank?
+
+      log_not_null_violation(model_namespace:, missing_required_fields:)
+
+      raise ActiveRecord::Rollback
+    end
+
     def normalized_upsert_data(model_data:, update_fields:, model_namespace:)
+      missing_required_fields = []
+      required_fields = send("#{model_namespace}_required_fields")
+
       # Ensure all records have all required fields, to avoid upsert errors
       normalized_data = model_data.map do |record|
         update_fields.each_with_object({}) do |field, normalized_record|
+          missing_required_fields << field if field.in?(required_fields) && record[field].blank?
+
           normalized_record[field] = record[field]
         end
       end
@@ -305,7 +322,7 @@ class ImportRestaurants
         send("#{model_namespace}_unique_by_values", record)
       end
 
-      normalized_data
+      return normalized_data, missing_required_fields
     end
 
     MODELS.each do |model_namespace|

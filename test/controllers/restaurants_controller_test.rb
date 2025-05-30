@@ -154,7 +154,7 @@ class RestaurantsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "https://example.com/small-salad.jpg", small_salad_item.picture_url
   end
 
-  test "should return HTTP 422 if JSON file is invalid" do
+  test "should return HTTP unprocessable entity if JSON file is missing required fields" do
     assert_no_difference "MenuMenuItem.count" do
       assert_no_difference "Restaurant.count" do
         assert_no_difference "Menu.count" do
@@ -181,7 +181,7 @@ class RestaurantsControllerTest < ActionDispatch::IntegrationTest
         "success" => [],
         "errors" => [
           {
-            "description" => "The following fields are required: name"
+            "description" => "The following fields are required and are missing: name"
           }
         ]
       },
