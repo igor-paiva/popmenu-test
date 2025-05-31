@@ -81,7 +81,7 @@ class ImportRestaurants
 
   def initialize(params)
     @result = {}
-    @params = params.to_h
+    @params = params
   end
 
   class << self
@@ -252,11 +252,11 @@ class ImportRestaurants
         raise ActiveRecord::Rollback
       end
 
-      ids_map = result.map do |record_result|
+      ids_map = result.to_h do |record_result|
         unique_by_values = send("#{model_namespace}_unique_by_values", record_result)
 
         [ unique_by_values, record_result[:id] ]
-      end.to_h
+      end
 
       instance_variable_set("@#{model_namespace}_ids_map", ids_map) unless skip_ids_map
 
