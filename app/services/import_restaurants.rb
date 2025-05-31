@@ -179,59 +179,71 @@ class ImportRestaurants
     end
 
     def extract_restaurants!
-      @restaurants_data = @params[:restaurants]
-
-      upsert_model_data!(model: Restaurant, model_namespace: :restaurants)
+      @restaurants_ids_map = upsert_model_data!(
+        model: Restaurant,
+        model_namespace: :restaurants,
+        model_data: @params[:restaurants]
+      )
     end
 
     def extract_menus!
-      @menus_data = @restaurants_data.flat_map do |restaurant|
+      @menus_data = @params[:restaurants].flat_map do |restaurant|
+        restaurant_id = record_id(model_namespace: :restaurants, record_hash: restaurant)
+
         restaurant[:menus].map do |menu|
           menu_data = menu.slice(*(menus_update_fields + %i[menu_items]))
 
           menu_data[:menu_items] = menu[:dishes] if menu_data[:menu_items].blank? && menu.key?(:dishes)
+          menu_data[:restaurant_id] = restaurant_id
 
-          menu_data.merge(restaurant_id: restaurants_record_id(restaurant))
+          menu_data
         end
       end
 
-      upsert_model_data!(model: Menu, model_namespace: :menus)
+      @menus_ids_map = upsert_model_data!(model: Menu, model_namespace: :menus, model_data: @menus_data)
     end
 
     def extract_menu_items!
       @menu_items_data = @menus_data.flat_map do |menu|
+        menu_id = record_id(model_namespace: :menus, record_hash: menu)
+
         menu[:menu_items].map do |menu_item|
-          menu_item.slice(*menu_items_update_fields).merge(menu_id: menus_record_id(menu))
+          menu_item.slice(*menu_items_update_fields).merge(menu_id:)
         end
       end
 
-      upsert_model_data!(model: MenuItem, model_namespace: :menu_items)
+      @menu_items_ids_map = upsert_model_data!(
+        model: MenuItem, model_namespace: :menu_items, model_data: @menu_items_data
+      )
     end
 
     def extract_menu_menu_items!
-      @menu_menu_items_data = @menu_items_data.map do |menu_item|
+      menu_menu_items_data = @menu_items_data.map do |menu_item|
         {
           price: menu_item[:price],
           menu_id: menu_item[:menu_id],
-          menu_item_id: menu_items_record_id(menu_item)
+          menu_item_id: record_id(model_namespace: :menu_items, record_hash: menu_item)
         }
       end
 
       upsert_model_data!(
-        model: MenuMenuItem, model_namespace: :menu_menu_items,
-        skip_ids_map: true, custom_message: "Failed to associate menu items with menus"
+        model: MenuMenuItem, model_namespace: :menu_menu_items, model_data: menu_menu_items_data,
+        custom_message: "Failed to associate menu items with menus"
       )
     end
 
-    def upsert_model_data!(model:, model_namespace:, skip_ids_map: false, custom_message: nil)
+    def upsert_model_data!(model:, model_data:, model_namespace:, custom_message: nil)
       unique_by = send("#{model_namespace}_unique_by")
       returning = unique_by + %i[id]
       update_fields = send("#{model_namespace}_update_fields")
 
-      model_data = instance_variable_get("@#{model_namespace}_data")
       normalized_data, missing_required_fields = normalized_upsert_data(model_data:, update_fields:, model_namespace:)
 
-      validate_required_fields!(model_namespace:, missing_required_fields:)
+      if missing_required_fields.any?
+        log_missing_required_fields(model_namespace:, missing_required_fields:)
+
+        raise ActiveRecord::Rollback
+      end
 
       begin
         result = model
@@ -239,7 +251,7 @@ class ImportRestaurants
           .to_a
           .map(&:symbolize_keys)
       rescue ActiveRecord::NotNullViolation
-        log_not_null_violation(model_namespace:)
+        log_missing_required_fields(model_namespace:)
 
         raise ActiveRecord::Rollback
       end
@@ -252,28 +264,26 @@ class ImportRestaurants
         raise ActiveRecord::Rollback
       end
 
-      ids_map = result.to_h do |record_result|
-        unique_by_values = send("#{model_namespace}_unique_by_values", record_result)
+      ids_map = result.to_h do |record_hash|
+        unique_by_values = record_unique_by_values(model_namespace:, record_hash:)
 
-        [ unique_by_values, record_result[:id] ]
+        [ unique_by_values, record_hash[:id] ]
       end
-
-      instance_variable_set("@#{model_namespace}_ids_map", ids_map) unless skip_ids_map
 
       log_successful_imports(model_namespace:, result:)
 
-      log_failed_imports(model_namespace:, model_data:, ids_map:)
+      log_failed_imports(model_namespace:, model_data:, ids_map:, unique_by:)
+
+      ids_map
     end
 
     def log_successful_imports(model_namespace:, result:)
       @result[model_namespace][:success] = result
     end
 
-    def log_failed_imports(model_namespace:, model_data:, ids_map:)
-      unique_by = send("#{model_namespace}_unique_by")
-
-      model_data.each do |record|
-        unique_by_values_hash = record.slice(*unique_by)
+    def log_failed_imports(model_namespace:, model_data:, ids_map:, unique_by:)
+      model_data.each do |record_hash|
+        unique_by_values_hash = record_hash.slice(*unique_by)
 
         next if ids_map.key?(unique_by_values_hash.values)
 
@@ -281,7 +291,7 @@ class ImportRestaurants
       end
     end
 
-    def log_not_null_violation(model_namespace:, missing_required_fields:)
+    def log_missing_required_fields(model_namespace:, missing_required_fields:)
       @result[:general][:errors] << {
         error_record: model_namespace,
         description: "Failed to import #{model_namespace} records"
@@ -296,14 +306,6 @@ class ImportRestaurants
       Arel.sql(update_fields.map { |field| "#{field} = EXCLUDED.#{field}" }.join(", "))
     end
 
-    def validate_required_fields!(model_namespace:, missing_required_fields:)
-      return if missing_required_fields.blank?
-
-      log_not_null_violation(model_namespace:, missing_required_fields:)
-
-      raise ActiveRecord::Rollback
-    end
-
     def normalized_upsert_data(model_data:, update_fields:, model_namespace:)
       missing_required_fields = []
       required_fields = send("#{model_namespace}_required_fields")
@@ -311,7 +313,7 @@ class ImportRestaurants
 
       # Ensure all records have all required fields and are unique, to avoid upsert errors
       normalized_data = model_data.filter_map do |record|
-        unique_values = send("#{model_namespace}_unique_by_values", record)
+        unique_values = record_unique_by_values(model_namespace:, record_hash: record)
 
         next if seen_unique_values.include?(unique_values)
 
@@ -327,17 +329,17 @@ class ImportRestaurants
       return normalized_data, missing_required_fields
     end
 
-    MODELS.each do |model_namespace|
-      define_method("#{model_namespace}_unique_by_values") do |record_hash|
-        record_hash.values_at(*send("#{model_namespace}_unique_by"))
-      end
+    def record_unique_by_values(model_namespace:, record_hash:)
+      unique_by = send("#{model_namespace}_unique_by")
 
-      define_method("#{model_namespace}_record_id") do |record_hash|
-        unique_by_values = send("#{model_namespace}_unique_by_values", record_hash)
+      record_hash.values_at(*unique_by)
+    end
 
-        ids_map = instance_variable_get("@#{model_namespace}_ids_map")
+    def record_id(model_namespace:, record_hash:)
+      unique_by_values = record_unique_by_values(model_namespace:, record_hash:)
 
-        ids_map[unique_by_values]
-      end
+      ids_map = instance_variable_get("@#{model_namespace}_ids_map")
+
+      ids_map[unique_by_values]
     end
 end
