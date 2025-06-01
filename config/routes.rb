@@ -8,4 +8,6 @@ Rails.application.routes.draw do
   resources :restaurants, only: %i[index show] do
     post "import", to: "restaurants#import", on: :collection
   end
+
+  resources :import_statuses, only: %i[show]
 end

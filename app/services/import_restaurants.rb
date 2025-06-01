@@ -81,7 +81,7 @@ class ImportRestaurants
 
   def initialize(params)
     @result = {}
-    @params = params.to_h
+    @params = params
   end
 
   class << self

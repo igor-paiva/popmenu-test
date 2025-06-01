@@ -10,13 +10,19 @@ class RestaurantsController < ApplicationController
   def show; end
 
   def import
-    @result = ImportRestaurants.run(import_permitted_params)
+    import_status = ImportStatus.new(status: :pending)
 
-    @result.delete(:menu_menu_items)
+    import_status.file = ActiveStorage::Blob.create_and_upload!(
+      io: StringIO.new(import_permitted_params.to_json),
+      filename: "import_restaurants_#{Time.zone.now.strftime("%Y%m%d%H%M%S")}.json",
+      content_type: "application/json"
+    )
 
-    return render json: @result, status: :unprocessable_entity unless @result[:general][:success]
+    import_status.save!
 
-    render json: @result, status: :ok
+    ImportRestaurantsJob.perform_later(import_status.id)
+
+    render json: { import_status_id: import_status.id, message: "Import received" }, status: :accepted
   end
 
   private
